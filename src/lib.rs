@@ -64,7 +64,11 @@ fn parse_proto(proto_data: &str) -> String {
                 let (field, number) = line
                     .split_once('=')
                     .expect("proto-fields must have a number assigned");
-                field.trim_end().to_string() + ";"
+                let (typ, ident) = field
+                    .trim_end()
+                    .rsplit_once(" ")
+                    .expect("field must have a type and a ident");
+                format!("{ident}: {typ},")
             } else {
                 line.trim().to_string()
             }
