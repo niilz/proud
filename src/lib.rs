@@ -117,11 +117,11 @@ fn to_rust_type(proto_type: &str) -> String {
         "sint64" => "i64",
         "fixed32" => "u32",
         "fixed64" => "u64",
-        "sfixed32" => "u32",
-        "sfixed64" => "u64",
+        "sfixed32" => "i32",
+        "sfixed64" => "i64",
         "bool" => "bool",
         "string" => "String",
-        "bytes" => "[u8]",
+        "bytes" => "Vec<u8>",
         _ => panic!("unsupported typ: '{typ}'"),
     };
 
@@ -137,12 +137,18 @@ mod test {
     use crate::parse_proto;
 
     const EXPECTED: &str = "struct Person {
-name: Option<String>,
+name: String,
+age: u32,
+role: Option<String>,
+is_coder: bool,
 }";
 
     const PROTO_PERSON: &str = "syntax = \"proto3\";
 message Person {
-  optional string name = 1;
+  string name = 1;
+  uint32 age = 2;
+  optional string role = 3;
+  bool is_coder = 4;
 }";
     #[test]
     fn parse_single_string() {
