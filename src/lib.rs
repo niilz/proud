@@ -25,6 +25,68 @@ pub fn generate_structs(path: TokenStream) -> TokenStream {
         Lit::Str(lit_str) => lit_str.value(),
         _ => panic!("path must be a string literal"),
     };
-    let tokens = LitStr::new(&path, Span::call_site());
-    quote! { #tokens }.into()
+    if !path.ends_with(".proto") {
+        panic!("path is not a proto-file")
+    }
+
+    let proto_data = std::fs::read_to_string(path).expect("Could not read proto-file");
+    let proto_type = parse_proto(&proto_data);
+    /*
+     * given:
+     *
+     * message Person {
+     *   optional string name = 1;
+     * }
+     *
+     * becomes:
+     *
+     * struct Person {
+     * String name;
+     * }
+     */
+    proto_type
+        .parse()
+        .expect("Could not parse the proto-data into a rust type")
+}
+
+fn parse_proto(proto_data: &str) -> String {
+    let rustified = proto_data
+        .trim()
+        .replace("message", "struct")
+        .replace("optional ", "")
+        .replace("string", "String");
+
+    rustified
+        .lines()
+        .map(|line| {
+            if line.ends_with(";") {
+                println!("{line}");
+                let (field, number) = line
+                    .split_once('=')
+                    .expect("proto-fields must have a number assigned");
+                field.trim_end().to_string() + ";"
+            } else {
+                line.trim().to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+#[cfg(test)]
+mod test {
+    use crate::parse_proto;
+
+    #[test]
+    fn parse_single_string() {
+        let expected = "struct Person {
+  String name;
+}";
+
+        let proto_person = "message Person {
+  optional string name = 1;
+}";
+
+        assert_eq!(parse_proto(proto_person), expected);
+    }
 }
