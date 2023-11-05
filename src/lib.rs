@@ -60,7 +60,6 @@ fn parse_proto(proto_data: &str) -> String {
         .lines()
         .map(|line| {
             if line.ends_with(";") {
-                println!("{line}");
                 let (field, number) = line
                     .split_once('=')
                     .expect("proto-fields must have a number assigned");
@@ -68,7 +67,7 @@ fn parse_proto(proto_data: &str) -> String {
                     .trim_end()
                     .rsplit_once(" ")
                     .expect("field must have a type and a ident");
-                format!("{ident}: {typ},")
+                format!("{}: {},", ident.trim(), typ.trim())
             } else {
                 line.trim().to_string()
             }
@@ -81,16 +80,15 @@ fn parse_proto(proto_data: &str) -> String {
 mod test {
     use crate::parse_proto;
 
-    #[test]
-    fn parse_single_string() {
-        let expected = "struct Person {
-  String name;
+    const EXPECTED: &str = "struct Person {
+name: String,
 }";
 
-        let proto_person = "message Person {
+    const PROTO_PERSON: &str = "message Person {
   optional string name = 1;
 }";
-
-        assert_eq!(parse_proto(proto_person), expected);
+    #[test]
+    fn parse_single_string() {
+        assert_eq!(parse_proto(PROTO_PERSON), EXPECTED);
     }
 }
