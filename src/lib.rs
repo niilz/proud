@@ -140,7 +140,6 @@ fn to_proto(rust_type: &str, is_optional: bool) -> String {
         "i64" => "int64",
         "u32" => "uint32",
         "u64" => "uint64",
-        "u64" => "fixed64",
         "bool" => "bool",
         "String" => "string",
         "bytes" => "Vec<u8>",
