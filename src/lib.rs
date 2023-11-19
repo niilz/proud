@@ -10,7 +10,7 @@ pub fn derive_proto_buf(item: TokenStream) -> proc_macro::TokenStream {
     let ident = proto_buf_struct.ident;
     let ts = quote! {
         impl #ident {
-            pub fn to_proto_buf(&self) -> String {
+            pub fn to_proto(&self) -> String {
                 "foo".to_string()
             }
         }
