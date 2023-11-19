@@ -132,6 +132,28 @@ fn to_rust_type(proto_type: &str) -> String {
     }
 }
 
+fn to_proto(rust_type: &str, is_optional: bool) -> String {
+    let proto_type = match rust_type {
+        "f64" => "double",
+        "f32" => "float",
+        "i32" => "int32",
+        "i64" => "int64",
+        "u32" => "uint32",
+        "u64" => "uint64",
+        "u64" => "fixed64",
+        "bool" => "bool",
+        "String" => "string",
+        "bytes" => "Vec<u8>",
+        _ => panic!("unsupported typ: '{rust_type}'"),
+    };
+
+    if is_optional {
+        format!("Option<{}>", proto_type)
+    } else {
+        proto_type.to_string()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::parse_proto;
