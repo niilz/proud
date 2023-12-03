@@ -1,17 +1,28 @@
 extern crate proc_macro;
-use proc_macro::{Ident, TokenStream};
-use proc_macro2::Span;
+
+use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Lit, LitStr};
+use syn::{Data, Lit};
 
 #[proc_macro_derive(ProtoBuf)]
 pub fn derive_proto_buf(item: TokenStream) -> proc_macro::TokenStream {
     let proto_buf_struct: syn::DeriveInput = syn::parse(item).unwrap();
     let ident = proto_buf_struct.ident;
+    let data = proto_buf_struct.data;
+    let fields = match data {
+        Data::Struct(s) => s.fields,
+        _ => panic!("only structs with fields supported"),
+    };
+    let proto_type_meta_values: Vec<String> = fields
+        .iter()
+        .map(|field| (field.clone().ident.unwrap(), field.clone().ty))
+        .map(|(ident, ty)| ident.to_string())
+        .collect();
     let ts = quote! {
         impl #ident {
-            pub fn to_proto(&self) -> String {
-                "foo".to_string()
+            pub fn to_proto(&self) -> Vec<String> {
+                let foo: Vec<&str> = vec![#(#proto_type_meta_values),*];
+                foo.iter().map(|s| s.to_string()).collect()
             }
         }
     };
@@ -142,7 +153,7 @@ fn to_proto(rust_type: &str, is_optional: bool) -> String {
         "u64" => "uint64",
         "bool" => "bool",
         "String" => "string",
-        "bytes" => "Vec<u8>",
+        "Vec<u8>" => "bytes",
         _ => panic!("unsupported typ: '{rust_type}'"),
     };
 
