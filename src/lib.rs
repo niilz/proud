@@ -1,8 +1,21 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
-use quote::quote;
-use syn::{Data, Lit};
+use quote::{quote, ToTokens};
+use syn::{Data, Lit, Type};
+
+#[derive(Debug)]
+struct ProtoField {
+    name: String,
+    typ: String,
+}
+
+impl ToTokens for ProtoField {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let name_typ = format!("{}: {}", self.name, self.typ);
+        name_typ.to_tokens(tokens);
+    }
+}
 
 #[proc_macro_derive(ProtoBuf)]
 pub fn derive_proto_buf(item: TokenStream) -> proc_macro::TokenStream {
@@ -13,17 +26,27 @@ pub fn derive_proto_buf(item: TokenStream) -> proc_macro::TokenStream {
         Data::Struct(s) => s.fields,
         _ => panic!("only structs with fields supported"),
     };
-    let proto_type_meta_values: Vec<String> = fields
+    let proto_type_meta_values: Vec<_> = fields
         .iter()
         .map(|field| (field.clone().ident.unwrap(), field.clone().ty))
-        .map(|(ident, ty)| ident.to_string())
+        .map(|(ident, ty)| {
+            let tp = match ty {
+                Type::Path(tp) => tp,
+                _ => panic!("only typed-path is supported"),
+            };
+            ProtoField {
+                name: ident.to_string(),
+                typ: tp.path.get_ident().unwrap().to_string(),
+            }
+        })
         .collect();
     let ts = quote! {
         impl #ident {
             pub fn to_proto(&self) -> Vec<String> {
-                let foo: Vec<&str> = vec![#(#proto_type_meta_values),*];
-                foo.iter().map(|s| s.to_string()).collect()
+                let foo: Vec<_> = vec![#(#proto_type_meta_values),*];
+                foo.iter().map(|pf| pf.to_string()).collect::<Vec<_>>()
             }
+
         }
     };
     TokenStream::from(ts)
