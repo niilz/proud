@@ -2,7 +2,7 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{Data, Lit, Type};
+use syn::{parse_quote, punctuated::Punctuated, Data, Lit, Stmt, Type};
 
 #[derive(Debug)]
 struct ProtoField {
@@ -40,11 +40,15 @@ pub fn derive_proto_buf(item: TokenStream) -> proc_macro::TokenStream {
             }
         })
         .collect();
+    let mut proto_string = format!("message {ident} {{\n");
+    for (idx, field) in proto_type_meta_values.iter().enumerate() {
+        proto_string.push_str(&format!("  {}: {} = {};\n", field.typ, field.name, idx + 1));
+    }
+    proto_string.push('}');
     let ts = quote! {
         impl #ident {
-            pub fn to_proto(&self) -> Vec<String> {
-                let foo: Vec<_> = vec![#(#proto_type_meta_values),*];
-                foo.iter().map(|pf| pf.to_string()).collect::<Vec<_>>()
+            pub fn to_proto(&self) -> String {
+                #proto_string.to_string()
             }
 
         }
