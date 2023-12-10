@@ -1,20 +1,13 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
-use quote::{quote, ToTokens};
-use syn::{parse_quote, punctuated::Punctuated, Data, Lit, Stmt, Type};
+use quote::quote;
+use syn::{Data, Lit, Type};
 
 #[derive(Debug)]
 struct ProtoField {
     name: String,
     typ: String,
-}
-
-impl ToTokens for ProtoField {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let name_typ = format!("{}: {}", self.name, self.typ);
-        name_typ.to_tokens(tokens);
-    }
 }
 
 #[proc_macro_derive(ProtoBuf)]
