@@ -1,13 +1,16 @@
 extern crate proc_macro;
 
+use std::option;
+
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Data, Lit, Type};
+use syn::{Data, GenericArgument, Lit, PathArguments, Type};
 
 #[derive(Debug)]
 struct ProtoField {
     name: String,
     typ: String,
+    optional: bool,
 }
 
 #[proc_macro_derive(ProtoBuf)]
@@ -21,21 +24,25 @@ pub fn derive_proto_buf(item: TokenStream) -> proc_macro::TokenStream {
     };
     let proto_type_meta_values: Vec<_> = fields
         .iter()
-        .map(|field| (field.clone().ident.unwrap(), field.clone().ty))
-        .map(|(ident, ty)| {
-            let tp = match ty {
-                Type::Path(tp) => tp,
-                _ => panic!("only typed-path is supported"),
-            };
+        .map(|field| {
+            (
+                field.clone().ident.expect("Field has no ident"),
+                field.clone().ty,
+            )
+        })
+        .map(|(field_ident, ty)| {
+            let (typ, optional) = extract_ident(&ty, false);
             ProtoField {
-                name: ident.to_string(),
-                typ: tp.path.get_ident().unwrap().to_string(),
+                name: field_ident.to_string(),
+                typ,
+                optional,
             }
         })
         .collect();
     let mut proto_string = format!("message {ident} {{\n");
     for (idx, field) in proto_type_meta_values.iter().enumerate() {
-        proto_string.push_str(&format!("  {}: {} = {};\n", field.typ, field.name, idx + 1));
+        let proto_type = to_proto_type(&field.typ, field.optional);
+        proto_string.push_str(&format!("  {} {} = {};\n", proto_type, field.name, idx + 1));
     }
     proto_string.push('}');
     let ts = quote! {
@@ -47,6 +54,25 @@ pub fn derive_proto_buf(item: TokenStream) -> proc_macro::TokenStream {
         }
     };
     TokenStream::from(ts)
+}
+
+fn extract_ident(ty: &Type, optional: bool) -> (String, bool) {
+    let tp = match ty {
+        Type::Path(tp) => tp,
+        _ => panic!("only typed-path is supported"),
+    };
+    let last_element = tp.path.segments.last().expect("must have a last element");
+    if last_element.ident == "Option" {
+        let PathArguments::AngleBracketed(generics) = &last_element.arguments else {
+            panic!("Option must have an arg");
+        };
+        let GenericArgument::Type(inner_type) = &generics.args[0] else {
+            panic!("Must have inner type");
+        };
+        extract_ident(inner_type, true)
+    } else {
+        (last_element.ident.to_string(), optional)
+    }
 }
 
 #[proc_macro]
@@ -163,7 +189,7 @@ fn to_rust_type(proto_type: &str) -> String {
     }
 }
 
-fn to_proto(rust_type: &str, is_optional: bool) -> String {
+fn to_proto_type(rust_type: &str, is_optional: bool) -> String {
     let proto_type = match rust_type {
         "f64" => "double",
         "f32" => "float",
@@ -178,7 +204,7 @@ fn to_proto(rust_type: &str, is_optional: bool) -> String {
     };
 
     if is_optional {
-        format!("Option<{}>", proto_type)
+        format!("optional {}", proto_type)
     } else {
         proto_type.to_string()
     }
